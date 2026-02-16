@@ -1,0 +1,104 @@
+# JavaCC Generated Files
+*.jj
+*TokenManager.java
+*Constants.java
+*CharStream.java
+ParseException.java
+Token.java
+TokenMgrError.java
+SimpleNode.java
+Node.java
+JJT*.java
+
+# Compiled Java Files
+*.class
+
+# Generated Directory (contains compiled classes)
+generated/*.class
+generated/*.java
+
+# Keep these in generated folder
+!generated/SymbolTable.java
+
+# Temporary Files
+output.tmp
+*.tmp
+*.log
+
+# IDE Files
+.idea/
+.vscode/
+*.iml
+.project
+.classpath
+.settings/
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build directories
+bin/
+build/
+out/
+
+# Package Files
+*.jar
+*.war
+*.ear
+
+# Test output
+test-results/
+*.test
+
+# Backup files
+*~
+*.bak
+*.swp
+*.swo
+```
+
+---
+
+## **4. Complete Directory Structure**
+```
+your-project/
+├── .gitignore                    # Git ignore file
+├── README.md                     # Project documentation
+├── compile.sh                    # Compilation script (Linux)
+├── compile.ps1                   # Compilation script (Windows)
+├── run_tests.sh                  # Test script (Linux)
+├── run_tests.ps1                 # Test script (Windows)
+│
+├── src/                          # Source files (tracked in Git)
+│   ├── CL.jjt                    # JavaCC grammar file
+│   └── SymbolTable.java          # Symbol table implementation
+│
+├── generated/                    # Generated files (mostly ignored)
+│   ├── SymbolTable.java          # Copy of SymbolTable (tracked)
+│   ├── CLParser.class            # Compiled classes (ignored)
+│   ├── CLParser.java             # Generated parser (ignored)
+│   └── ... (other generated files - ignored)
+│
+└── test/                         # Test files (tracked in Git)
+    ├── test1_addition.cl
+    ├── test2_factorial.cl
+    ├── test3_switch_int.cl
+    ├── test4_switch_string.cl
+    ├── test5_arithmetic.cl
+    ├── test6_conditions.cl
+    ├── test7_strings.cl
+    ├── test8_multi_vars.cl
+    ├── test9_switch_no_other.cl
+    ├── test10_nested_expr.cl
+    ├── error1_undeclared.cl
+    ├── error2_duplicate.cl
+    ├── error3_no_semicolon.cl
+    ├── error4_switch_undeclared.cl
+    ├── error5_condition_undeclared.cl
+    ├── error6_no_variables.cl
+    ├── error7_no_code.cl
+    ├── error8_invalid_token.cl
+    ├── error9_string_in_math.cl
+    └── error10_no_end.cl

@@ -1,0 +1,262 @@
+options {
+  STATIC = false;
+  DEBUG_PARSER = false;
+}
+
+PARSER_BEGIN(CLParser)
+
+import java.io.*;
+
+public class CLParser {
+  private static SymbolTable symbolTable = new SymbolTable();
+  
+  public static void main(String[] args) {
+    try {
+      InputStream input = System.in;
+      if (args.length > 0) {
+        input = new FileInputStream(args[0]);
+        System.out.println("Reading from file: " + args[0]);
+      } else {
+        System.out.println("Reading from standard input...");
+      }
+      
+      CLParser parser = new CLParser(input);
+      parser.StartProgram();
+      System.out.println("\n✓ Parsing completed successfully!");
+      
+      // Display symbol table
+      System.out.println("\nSymbol Table:");
+      symbolTable.print();
+      
+    } catch (ParseException e) {
+      System.err.println("Syntax Error: " + e.getMessage());
+    } catch (TokenMgrError e) {
+      System.err.println("Lexical Error: " + e.getMessage());
+    } catch (FileNotFoundException e) {
+      System.err.println("File not found: " + e.getMessage());
+    } catch (Exception e) {
+      System.err.println("Error: " + e.getMessage());
+    }
+  }
+}
+
+PARSER_END(CLParser)
+
+SKIP :
+{
+  " " | "\t" | "\n" | "\r"
+}
+
+TOKEN : /* KEYWORDS */
+{
+  < STARTPROGRAM: "startProgram" >
+| < ENDPROGRAM: "endProgram" >
+| < VARIABLES: "variables" >
+| < CODE: "code" >
+| < INT: "int" >
+| < STRING: "string" >
+| < OUTSTRING: "outString" >
+| < LOOPIF: "loopif" >
+| < HOLDS: "holds" >
+| < ENDLOOP: "endloop" >
+| < SWITCHFOR: "switchFor" >
+| < CASE: "case" >
+| < OTHER: "other" >
+| < ENDSWITCHFOR: "endswitchFor" >
+}
+
+TOKEN : /* LITERALS */
+{
+  < INTEGER: (["0"-"9"])+ >
+| < IDENTIFIER: ["a"-"z","A"-"Z"] (["a"-"z","A"-"Z","0"-"9","_"])* >  // Added underscore support
+| < STRING_LITERAL: "\"" (~["\""])* "\"" >
+}
+
+TOKEN : /* OPERATORS */
+{
+  < ASSIGN: "=" >
+| < PLUS: "+" >
+| < MINUS: "-" >
+| < MULTIPLY: "*" >
+| < DIVIDE: "/" >
+| < GT: ">" >
+| < LT: "<" >
+| < GTE: ">=" >
+| < LTE: "<=" >
+| < EQ: "==" >
+| < NEQ: "<>" >
+}
+
+TOKEN : /* DELIMITERS */
+{
+  < SEMICOLON: ";" >
+| < COLON: ":" >
+| < LPAREN: "(" >
+| < RPAREN: ")" >
+}
+
+// --- GRAMMAR PRODUCTIONS ---
+
+void StartProgram() : {}
+{
+  <STARTPROGRAM>
+  <VARIABLES> <COLON>
+  VariableDeclarations()
+  <CODE> <COLON>
+  ( Statement() )* 
+  <ENDPROGRAM>
+  <EOF>
+}
+
+void VariableDeclarations() : {}
+{
+  ( VarDeclaration() )*  // Changed to * to allow zero or more
+}
+
+void VarDeclaration() : 
+{ 
+  Token tType, tName, tValue;
+  String type, name, value;
+}
+{
+  ( tType=<INT> | tType=<STRING> ) 
+  tName=<IDENTIFIER> 
+  <ASSIGN> 
+  ( tValue=<INTEGER> | tValue=<STRING_LITERAL> ) 
+  <SEMICOLON>  // Removed optional - now required
+  {
+    type = tType.image;
+    name = tName.image;
+    value = tValue.image;
+    
+    // Check for duplicate declaration
+    if (symbolTable.exists(name)) {
+      throw new ParseException("Semantic Error: Variable '" + name + 
+                               "' already declared at line " + tName.beginLine);
+    }
+    
+    // Add to symbol table
+    symbolTable.addSymbol(name, type, value, tName.beginLine);
+  }
+}
+
+void Statement() : {}
+{
+  LOOKAHEAD(2)
+  AssignmentStatement()
+| OutStringStatement()
+| LoopIfStatement()
+| SwitchForStatement()
+}
+
+void AssignmentStatement() : 
+{ Token tName; }
+{
+  tName=<IDENTIFIER> <ASSIGN> Expression() <SEMICOLON>
+  {
+    // Check if variable exists
+    if (!symbolTable.exists(tName.image)) {
+      throw new ParseException("Semantic Error: Variable '" + tName.image + 
+                               "' not declared at line " + tName.beginLine);
+    }
+  }
+}
+
+void Expression() : {}
+{
+  Term() ( ( <PLUS> | <MINUS> ) Term() )*
+}
+
+void Term() : {}
+{
+  Factor() ( ( <MULTIPLY> | <DIVIDE> ) Factor() )*
+}
+
+void Factor() : 
+{ Token t; }
+{
+  <INTEGER> 
+| t=<IDENTIFIER> 
+  { 
+    if (!symbolTable.exists(t.image)) {
+      throw new ParseException("Semantic Error: Variable '" + t.image + 
+                               "' not declared at line " + t.beginLine);
+    }
+  }
+| <LPAREN> Expression() <RPAREN>
+}
+
+void OutStringStatement() : {}
+{
+  <OUTSTRING> <LPAREN> 
+  ( 
+    <STRING_LITERAL> 
+  | Expression() 
+  ) 
+  <RPAREN> <SEMICOLON>
+}
+
+void LoopIfStatement() : {}
+{
+  <LOOPIF> Condition() <HOLDS>
+  ( AssignmentStatement() )+  // At least one statement required
+  <ENDLOOP>
+}
+
+void SwitchForStatement() : 
+{ Token tVar; }
+{
+  <SWITCHFOR> <LPAREN> tVar=<IDENTIFIER> <RPAREN>
+  {
+    // Check if variable exists
+    if (!symbolTable.exists(tVar.image)) {
+      throw new ParseException("Semantic Error: Variable '" + tVar.image + 
+                               "' not declared in switchFor at line " + tVar.beginLine);
+    }
+    
+    // Check if variable is int or string type
+    String varType = symbolTable.getType(tVar.image);
+    if (!varType.equals("int") && !varType.equals("string")) {
+      throw new ParseException("Semantic Error: SwitchFor variable must be int or string type at line " + tVar.beginLine);
+    }
+  }
+  ( CaseClause() )+
+  ( OtherClause() )?  // Other clause is now optional
+  <ENDSWITCHFOR>
+}
+
+void CaseClause() : {}
+{
+  <CASE> ( <INTEGER> | <STRING_LITERAL> ) <COLON> AssignmentStatement()  // Only one statement per case
+}
+
+void OtherClause() : {}
+{
+  <OTHER> <COLON> AssignmentStatement()  // Only one statement
+}
+
+void Condition() : 
+{ Token t; }
+{
+  ( t=<IDENTIFIER> 
+    {
+      // Check if variable exists in condition
+      if (!symbolTable.exists(t.image)) {
+        throw new ParseException("Semantic Error: Variable '" + t.image + 
+                                 "' not declared in condition at line " + t.beginLine);
+      }
+    }
+  | <INTEGER> 
+  ) 
+  ( <GT> | <LT> | <GTE> | <LTE> | <EQ> | <NEQ> ) 
+  ( t=<IDENTIFIER>
+    {
+      // Check if variable exists in condition
+      if (!symbolTable.exists(t.image)) {
+        throw new ParseException("Semantic Error: Variable '" + t.image + 
+                                 "' not declared in condition at line " + t.beginLine);
+      }
+    }
+  | <INTEGER> 
+  )
+}
