@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # CL Compiler Test Suite - Bash Script for Linux
-# Place this in the root directory
 
 # Color codes
 RED='\033[0;31m'
@@ -51,7 +50,7 @@ for testfile in "$TEST_DIR"/test*.cl; do
     if [ -f "$testfile" ]; then
         ((total++))
         filename=$(basename "$testfile")
-        echo -n "Testing $filename ... "
+        echo -ne "Testing ${filename} ... "
         
         output=$(java -cp "$GENERATED_DIR" CLParser "$testfile" 2>&1)
         exit_code=$?
@@ -62,11 +61,12 @@ for testfile in "$TEST_DIR"/test*.cl; do
         else
             echo -e "${RED}✗ FAIL${NC}"
             ((fail++))
-            echo -e "${GRAY}$output${NC}"
+            echo "$output"
         fi
-        echo ""
     fi
 done
+
+echo ""
 
 # Test error programs
 echo -e "${YELLOW}--- ERROR PROGRAMS (Should Fail) ---${NC}"
@@ -82,7 +82,7 @@ for testfile in "$TEST_DIR"/error*.cl; do
         fi
         
         ((total++))
-        echo -n "Testing $filename ... "
+        echo -ne "Testing ${filename} ... "
         
         output=$(java -cp "$GENERATED_DIR" CLParser "$testfile" 2>&1)
         exit_code=$?
@@ -100,11 +100,12 @@ for testfile in "$TEST_DIR"/error*.cl; do
             fi
         fi
         
-        # Show first 2 lines of error
-        echo "$output" | head -2 | sed 's/^/  /' | sed "s/.*/${GRAY}&${NC}/"
-        echo ""
+        # Show first 2 lines of error (without duplicates)
+        echo "$output" | grep -i "error" | head -1 | sed 's/^/  /'
     fi
 done
+
+echo ""
 
 # Known Limitations
 echo -e "${MAGENTA}--- KNOWN LIMITATIONS ---${NC}"
@@ -118,7 +119,7 @@ echo ""
 echo -e "${CYAN}==================================${NC}"
 echo -e "${CYAN}Test Results:${NC}"
 echo -e "${CYAN}==================================${NC}"
-echo -e "Total Tests:  $total"
+echo "Total Tests:  $total"
 echo -e "${GREEN}Passed:       $pass${NC}"
 echo -e "${RED}Failed:       $fail${NC}"
 
