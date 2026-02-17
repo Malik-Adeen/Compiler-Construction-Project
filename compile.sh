@@ -101,34 +101,3 @@ echo "=================================="
 echo -e "${NC}"
 echo "Classes generated in: generated/"
 echo ""
-```
-
----
-
-## **Key Changes Made**
-
-1. **Copy SymbolTable.java to root directory** before compilation so the compiler can find it
-2. **Compile with `-d generated`** to output `.class` files to the generated directory
-3. **Clean up** Java source files from root after compilation
-4. **Keep SymbolTable.java** in generated folder for Git tracking
-
----
-
-## **Directory Flow**
-```
-Before compilation:
-src/
-├── CL.jjt
-└── SymbolTable.java
-
-After compilation:
-src/
-├── CL.jjt
-└── SymbolTable.java
-
-generated/
-├── SymbolTable.java      (copy for Git)
-├── SymbolTable.class
-├── CLParser.class
-├── CLParser.java         (ignored by Git)
-└── ... (other generated files)
