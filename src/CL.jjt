@@ -149,57 +149,90 @@ void Statement() : {}
 | SwitchForStatement()
 }
 
-void AssignmentStatement() : 
-{ Token tName; }
+void SimpleStatement() : {}
 {
-  tName=<IDENTIFIER> <ASSIGN> Expression() <SEMICOLON>
+  LOOKAHEAD(2)
+  AssignmentStatement()
+| OutStringStatement()
+}
+
+void AssignmentStatement() : 
+{ Token tName; String expType; }
+{
+  tName=<IDENTIFIER> <ASSIGN> expType=Expression() <SEMICOLON>
   {
     // Check if variable exists
     if (!symbolTable.exists(tName.image)) {
       throw new ParseException("Semantic Error: Variable '" + tName.image + 
                                "' not declared at line " + tName.beginLine);
     }
+    
+    // Type checking!
+    String varType = symbolTable.getType(tName.image);
+    if (!varType.equals(expType) && !expType.equals("unknown")) {
+      throw new ParseException("Semantic Error: Type mismatch at line " + tName.beginLine + 
+                               ". Cannot assign " + expType + " to " + varType + " variable.");
+    }
   }
 }
 
-void Expression() : {}
+String Expression() : 
+{ String type1, type2; Token op = null; }
 {
-  Term() ( ( <PLUS> | <MINUS> ) Term() )*
+  type1=Term() ( ( op=<PLUS> | op=<MINUS> ) type2=Term() 
+    {
+      if (op != null) {
+          if (type1.equals("string") || type2.equals("string")) {
+             throw new ParseException("Semantic Error: Cannot perform math operations (+, -) on strings at line " + op.beginLine);
+          }
+      }
+    }
+  )*
+  { return type1; }
 }
 
-void Term() : {}
+String Term() : 
+{ String type1, type2; Token op = null; }
 {
-  Factor() ( ( <MULTIPLY> | <DIVIDE> ) Factor() )*
+  type1=Factor() ( ( op=<MULTIPLY> | op=<DIVIDE> ) type2=Factor() 
+    {
+      if (op != null) {
+          if (type1.equals("string") || type2.equals("string")) {
+             throw new ParseException("Semantic Error: Cannot perform math operations (*, /) on strings at line " + op.beginLine);
+          }
+      }
+    }
+  )*
+  { return type1; }
 }
 
-void Factor() : 
-{ Token t; }
+String Factor() : 
+{ Token t; String type = "unknown"; }
 {
-  <INTEGER> 
+  <INTEGER> { return "int"; }
+| t=<STRING_LITERAL> { return "string"; }
 | t=<IDENTIFIER> 
   { 
     if (!symbolTable.exists(t.image)) {
       throw new ParseException("Semantic Error: Variable '" + t.image + 
                                "' not declared at line " + t.beginLine);
     }
+    return symbolTable.getType(t.image);
   }
-| <LPAREN> Expression() <RPAREN>
+| <LPAREN> type=Expression() <RPAREN> { return type; }
 }
 
 void OutStringStatement() : {}
 {
   <OUTSTRING> <LPAREN> 
-  ( 
-    <STRING_LITERAL> 
-  | Expression() 
-  ) 
+  Expression() 
   <RPAREN> <SEMICOLON>
 }
 
 void LoopIfStatement() : {}
 {
   <LOOPIF> Condition() <HOLDS>
-  ( AssignmentStatement() )+  // At least one statement required
+  ( SimpleStatement() )+  // At least one statement required
   <ENDLOOP>
 }
 
@@ -227,12 +260,12 @@ void SwitchForStatement() :
 
 void CaseClause() : {}
 {
-  <CASE> ( <INTEGER> | <STRING_LITERAL> ) <COLON> AssignmentStatement()  // Only one statement per case
+  <CASE> ( <INTEGER> | <STRING_LITERAL> ) <COLON> ( SimpleStatement() )+  // Support multiple simple statements per case
 }
 
 void OtherClause() : {}
 {
-  <OTHER> <COLON> AssignmentStatement()  // Only one statement
+  <OTHER> <COLON> ( SimpleStatement() )+  // Support multiple simple statements
 }
 
 void Condition() : 
