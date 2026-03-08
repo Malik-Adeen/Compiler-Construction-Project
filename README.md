@@ -93,9 +93,8 @@ The compiler performs:
 - ✅ Variable declaration checking
 - ✅ Duplicate declaration detection
 - ✅ Variable usage validation
+- ✅ Type checking for assignments and expressions (arithmetic operations)
 - ✅ Type checking for switchFor variables
-
-**Note:** Expression type checking is not implemented (beyond project scope).
 
 ## Contributors
 

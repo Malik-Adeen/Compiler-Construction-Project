@@ -60,16 +60,13 @@ fi
 echo -e "${GREEN}✓ JavaCC completed${NC}"
 echo ""
 
-# Step 3: Copy SymbolTable to root for compilation
-echo -e "${YELLOW}[3/5] Preparing SymbolTable.java...${NC}"
-if [ -f "src/SymbolTable.java" ]; then
-    cp src/SymbolTable.java .
-    echo -e "${GREEN}✓ SymbolTable.java prepared${NC}"
-elif [ -f "SymbolTable.java" ]; then
-    echo -e "${GREEN}✓ SymbolTable.java found${NC}"
+# Step 3: Copy custom Java files to root for compilation
+echo -e "${YELLOW}[3/5] Preparing custom Java files...${NC}"
+if [ -d "src/" ]; then
+    cp src/*.java .
+    echo -e "${GREEN}✓ Custom Java files prepared from src/${NC}"
 else
-    echo -e "${RED}Error: SymbolTable.java not found${NC}"
-    exit 1
+    echo -e "${GREEN}✓ Custom Java files already in root${NC}"
 fi
 echo ""
 
@@ -83,10 +80,10 @@ fi
 echo -e "${GREEN}✓ Compilation completed${NC}"
 echo ""
 
-# Step 5: Copy SymbolTable to generated for Git tracking
+# Step 5: Copy custom Java files to generated for Git tracking
 echo -e "${YELLOW}[5/5] Organizing files...${NC}"
-cp SymbolTable.java generated/
-echo -e "${GREEN}✓ Files organized${NC}"
+cp SymbolTable.java Node.java SimpleNode.java generated/ 2>/dev/null || true
+echo -e "${GREEN}✓ Custom files organized${NC}"
 echo ""
 
 # Cleanup

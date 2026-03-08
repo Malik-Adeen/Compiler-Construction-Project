@@ -8,7 +8,7 @@ PARSER_BEGIN(CLParser)
 import java.io.*;
 
 public class CLParser {
-  private static SymbolTable symbolTable = new SymbolTable();
+  static SymbolTable st = new SymbolTable();
   
   public static void main(String[] args) {
     try {
@@ -26,7 +26,7 @@ public class CLParser {
       
       // Display symbol table
       System.out.println("\nSymbol Table:");
-      symbolTable.print();
+      st.print();
       
     } catch (ParseException e) {
       System.err.println("Syntax Error: " + e.getMessage());
@@ -68,7 +68,7 @@ TOKEN : /* KEYWORDS */
 TOKEN : /* LITERALS */
 {
   < INTEGER: (["0"-"9"])+ >
-| < IDENTIFIER: ["a"-"z","A"-"Z"] (["a"-"z","A"-"Z","0"-"9","_"])* >  // Added underscore support
+| < IDENTIFIER: ["a"-"z","A"-"Z"] (["a"-"z","A"-"Z","0"-"9","_"])* >
 | < STRING_LITERAL: "\"" (~["\""])* "\"" >
 }
 
@@ -113,31 +113,26 @@ void VariableDeclarations() : {}
   ( VarDeclaration() )*  // Changed to * to allow zero or more
 }
 
-void VarDeclaration() : 
-{ 
-  Token tType, tName, tValue;
-  String type, name, value;
+SimpleNode VarDeclaration() :
+{
+    Token tType, tName, tValue;
 }
 {
-  ( tType=<INT> | tType=<STRING> ) 
-  tName=<IDENTIFIER> 
-  <ASSIGN> 
-  ( tValue=<INTEGER> | tValue=<STRING_LITERAL> ) 
-  <SEMICOLON>  // Removed optional - now required
-  {
-    type = tType.image;
-    name = tName.image;
-    value = tValue.image;
-    
-    // Check for duplicate declaration
-    if (symbolTable.exists(name)) {
-      throw new ParseException("Semantic Error: Variable '" + name + 
-                               "' already declared at line " + tName.beginLine);
+    ( tType=<INT> | tType=<STRING> )
+    tName=<IDENTIFIER>
+    <ASSIGN>
+    ( tValue=<INTEGER> | tValue=<STRING_LITERAL> )
+    <SEMICOLON>
+    {
+        jjtThis.value = tName.image;
+        jjtThis.setType(tType.image);
+
+        if (!st.checkValue(tType.image + tName.image)) {
+            throw new ParseException("Semantic Error: Variable '" + tName.image + "' already declared.");
+        }
+        st.put(tName.image, tType.image + tName.image);
+        return jjtThis;
     }
-    
-    // Add to symbol table
-    symbolTable.addSymbol(name, type, value, tName.beginLine);
-  }
 }
 
 void Statement() : {}
@@ -156,70 +151,104 @@ void SimpleStatement() : {}
 | OutStringStatement()
 }
 
-void AssignmentStatement() : 
-{ Token tName; String expType; }
+void AssignmentStatement() :
 {
-  tName=<IDENTIFIER> <ASSIGN> expType=Expression() <SEMICOLON>
-  {
-    // Check if variable exists
-    if (!symbolTable.exists(tName.image)) {
-      throw new ParseException("Semantic Error: Variable '" + tName.image + 
-                               "' not declared at line " + tName.beginLine);
-    }
-    
-    // Type checking!
-    String varType = symbolTable.getType(tName.image);
-    if (!varType.equals(expType) && !expType.equals("unknown")) {
-      throw new ParseException("Semantic Error: Type mismatch at line " + tName.beginLine + 
-                               ". Cannot assign " + expType + " to " + varType + " variable.");
-    }
-  }
+    Token tName;
+    SimpleNode exprNode;
 }
-
-String Expression() : 
-{ String type1, type2; Token op = null; }
 {
-  type1=Term() ( ( op=<PLUS> | op=<MINUS> ) type2=Term() 
+    tName=<IDENTIFIER> <ASSIGN> exprNode=Expression() <SEMICOLON>
     {
-      if (op != null) {
-          if (type1.equals("string") || type2.equals("string")) {
-             throw new ParseException("Semantic Error: Cannot perform math operations (+, -) on strings at line " + op.beginLine);
-          }
-      }
+        if (!st.containsKey(tName.image)) {
+            throw new ParseException("Semantic Error: Variable '" + tName.image + "' not declared at line " + tName.beginLine);
+        }
+
+        String storedVal = st.get(tName.image);
+        String varType = storedVal.startsWith("int") ? "int" : "string";
+        String exprType = ((SimpleNode) exprNode.jjtGetChild(0)).getType();
+
+        if (!varType.equals(exprType) && !exprType.equals("unknown")) {
+            throw new ParseException("Semantic Error: Type mismatch at line " + tName.beginLine +
+                                     ". Cannot assign " + exprType + " to " + varType + ".");
+        }
     }
-  )*
-  { return type1; }
 }
 
-String Term() : 
-{ String type1, type2; Token op = null; }
+SimpleNode Expression() :
 {
-  type1=Factor() ( ( op=<MULTIPLY> | op=<DIVIDE> ) type2=Factor() 
+    SimpleNode t1, t2;
+    Token op = null;
+}
+{
+    t1=Term()
+    (
+        ( op=<PLUS> | op=<MINUS> ) t2=Term()
+        {
+            String leftType  = ((SimpleNode) jjtThis.jjtGetChild(0)).getType();
+            String rightType = ((SimpleNode) jjtThis.jjtGetChild(1)).getType();
+            if (leftType.equals("string") || rightType.equals("string")) {
+                throw new ParseException("Semantic Error: Cannot use +/- on strings at line " + op.beginLine);
+            }
+        }
+    )*
     {
-      if (op != null) {
-          if (type1.equals("string") || type2.equals("string")) {
-             throw new ParseException("Semantic Error: Cannot perform math operations (*, /) on strings at line " + op.beginLine);
-          }
-      }
+        jjtThis.setType(t1.getType());
+        return jjtThis;
     }
-  )*
-  { return type1; }
 }
 
-String Factor() : 
-{ Token t; String type = "unknown"; }
+SimpleNode Term() :
 {
-  <INTEGER> { return "int"; }
-| t=<STRING_LITERAL> { return "string"; }
-| t=<IDENTIFIER> 
-  { 
-    if (!symbolTable.exists(t.image)) {
-      throw new ParseException("Semantic Error: Variable '" + t.image + 
-                               "' not declared at line " + t.beginLine);
+    SimpleNode t1, t2;
+    Token op = null;
+}
+{
+    t1=Factor()
+    (
+        ( op=<MULTIPLY> | op=<DIVIDE> ) t2=Factor()
+        {
+            String leftType  = ((SimpleNode) jjtThis.jjtGetChild(0)).getType();
+            String rightType = ((SimpleNode) jjtThis.jjtGetChild(1)).getType();
+            if (leftType.equals("string") || rightType.equals("string")) {
+                throw new ParseException("Semantic Error: Cannot use */÷ on strings at line " + op.beginLine);
+            }
+        }
+    )*
+    {
+        jjtThis.setType(t1.getType());
+        return jjtThis;
     }
-    return symbolTable.getType(t.image);
-  }
-| <LPAREN> type=Expression() <RPAREN> { return type; }
+}
+
+SimpleNode Factor() :
+{
+    Token t;
+}
+{
+    t=<INTEGER>
+    {
+        jjtThis.value = t.image;
+        jjtThis.setType("int");
+        return jjtThis;
+    }
+|   t=<STRING_LITERAL>
+    {
+        jjtThis.value = t.image;
+        jjtThis.setType("string");
+        return jjtThis;
+    }
+|   t=<IDENTIFIER>
+    {
+        if (!st.containsKey(t.image)) {
+            throw new ParseException("Semantic Error: Variable '" + t.image + "' not declared at line " + t.beginLine);
+        }
+        String storedVal = st.get(t.image);
+        String resolvedType = storedVal.startsWith("int") ? "int" : "string";
+        jjtThis.value = t.image;
+        jjtThis.setType(resolvedType);
+        return jjtThis;
+    }
+|   <LPAREN> { SimpleNode inner = Expression(); jjtThis.setType(inner.getType()); return jjtThis; } <RPAREN>
 }
 
 void OutStringStatement() : {}
@@ -242,13 +271,14 @@ void SwitchForStatement() :
   <SWITCHFOR> <LPAREN> tVar=<IDENTIFIER> <RPAREN>
   {
     // Check if variable exists
-    if (!symbolTable.exists(tVar.image)) {
+    if (!st.containsKey(tVar.image)) {
       throw new ParseException("Semantic Error: Variable '" + tVar.image + 
                                "' not declared in switchFor at line " + tVar.beginLine);
     }
     
     // Check if variable is int or string type
-    String varType = symbolTable.getType(tVar.image);
+    String storedVal = st.get(tVar.image);
+    String varType = storedVal.startsWith("int") ? "int" : "string";
     if (!varType.equals("int") && !varType.equals("string")) {
       throw new ParseException("Semantic Error: SwitchFor variable must be int or string type at line " + tVar.beginLine);
     }
@@ -274,7 +304,7 @@ void Condition() :
   ( t=<IDENTIFIER> 
     {
       // Check if variable exists in condition
-      if (!symbolTable.exists(t.image)) {
+      if (!st.containsKey(t.image)) {
         throw new ParseException("Semantic Error: Variable '" + t.image + 
                                  "' not declared in condition at line " + t.beginLine);
       }
@@ -285,7 +315,7 @@ void Condition() :
   ( t=<IDENTIFIER>
     {
       // Check if variable exists in condition
-      if (!symbolTable.exists(t.image)) {
+      if (!st.containsKey(t.image)) {
         throw new ParseException("Semantic Error: Variable '" + t.image + 
                                  "' not declared in condition at line " + t.beginLine);
       }

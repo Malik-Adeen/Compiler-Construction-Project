@@ -61,21 +61,14 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "✓ JavaCC completed" -ForegroundColor Green
 Write-Host ""
 
-# Step 3: Copy SymbolTable.java to current directory (needed for compilation)
-Write-Host "[3/5] Preparing SymbolTable.java..." -ForegroundColor Yellow
-$symbolTableSource = $null
-if (Test-Path "src/SymbolTable.java") {
-    $symbolTableSource = "src/SymbolTable.java"
-} elseif (Test-Path "SymbolTable.java") {
-    $symbolTableSource = "SymbolTable.java"
+# Step 3: Copy custom Java files to current directory (needed for compilation)
+Write-Host "[3/5] Preparing custom Java files..." -ForegroundColor Yellow
+if (Test-Path "src/") {
+    Copy-Item "src/*.java" -Destination "." -Force
+    Write-Host "✓ Custom Java files prepared from src/" -ForegroundColor Green
 } else {
-    Write-Host "Error: SymbolTable.java not found" -ForegroundColor Red
-    exit 1
+    Write-Host "✓ Custom Java files already in root" -ForegroundColor Green
 }
-
-# Copy to current directory for compilation
-Copy-Item $symbolTableSource -Destination "." -Force
-Write-Host "✓ SymbolTable.java prepared" -ForegroundColor Green
 Write-Host ""
 
 # Step 4: Compile all Java files
@@ -106,10 +99,10 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "✓ Java compilation completed" -ForegroundColor Green
 Write-Host ""
 
-# Step 5: Copy SymbolTable.java to generated folder for Git tracking
+# Step 5: Copy custom Java files to generated folder for Git tracking
 Write-Host "[5/5] Organizing files..." -ForegroundColor Yellow
-Copy-Item "SymbolTable.java" -Destination $generatedDir -Force
-Write-Host "✓ SymbolTable.java copied to $generatedDir" -ForegroundColor Green
+Copy-Item "SymbolTable.java", "SimpleNode.java", "Node.java" -Destination $generatedDir -Force -ErrorAction SilentlyContinue
+Write-Host "✓ Custom Java files copied to $generatedDir" -ForegroundColor Green
 
 # Cleanup temporary files
 Write-Host ""
