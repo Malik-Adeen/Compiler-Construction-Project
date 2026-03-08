@@ -99,10 +99,9 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "✓ Java compilation completed" -ForegroundColor Green
 Write-Host ""
 
-# Step 5: Copy custom Java files to generated folder for Git tracking
+# Step 5: (Skipped)
 Write-Host "[5/5] Organizing files..." -ForegroundColor Yellow
-Copy-Item "SymbolTable.java", "SimpleNode.java", "Node.java" -Destination $generatedDir -Force -ErrorAction SilentlyContinue
-Write-Host "✓ Custom Java files copied to $generatedDir" -ForegroundColor Green
+Write-Host "✓ Custom Java files are already tracked in src/" -ForegroundColor Green
 
 # Cleanup temporary files
 Write-Host ""

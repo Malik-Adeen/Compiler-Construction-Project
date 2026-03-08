@@ -6,8 +6,8 @@
 ParseException.java
 Token.java
 TokenMgrError.java
-SimpleNode.java
-Node.java
+/SimpleNode.java
+/Node.java
 JJT*.java
 
 # Compiled Java Files
@@ -19,6 +19,8 @@ generated/*.java
 
 # Keep these in generated folder
 !generated/SymbolTable.java
+!generated/Node.java
+!generated/SimpleNode.java
 
 # Temporary Files
 output.tmp

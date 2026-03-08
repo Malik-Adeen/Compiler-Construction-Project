@@ -80,10 +80,9 @@ fi
 echo -e "${GREEN}✓ Compilation completed${NC}"
 echo ""
 
-# Step 5: Copy custom Java files to generated for Git tracking
+# Step 5: (Skipped)
 echo -e "${YELLOW}[5/5] Organizing files...${NC}"
-cp SymbolTable.java Node.java SimpleNode.java generated/ 2>/dev/null || true
-echo -e "${GREEN}✓ Custom files organized${NC}"
+echo -e "${GREEN}✓ Custom Java files are already tracked in src/${NC}"
 echo ""
 
 # Cleanup
