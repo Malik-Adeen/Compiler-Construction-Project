@@ -92,7 +92,7 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host ""
     Write-Host "Common issues:" -ForegroundColor Yellow
     Write-Host "  1. Make sure SymbolTable.java is in src/ directory" -ForegroundColor Gray
-    Write-Host "  2. Check that CLParser references symbolTable correctly" -ForegroundColor Gray
+    Write-Host "  2. Check that CLParser references st correctly" -ForegroundColor Gray
     Write-Host "  3. Verify Java version compatibility" -ForegroundColor Gray
     exit 1
 }

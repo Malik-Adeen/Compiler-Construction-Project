@@ -184,8 +184,11 @@ SimpleNode Expression() :
     (
         ( op=<PLUS> | op=<MINUS> ) t2=Term()
         {
-            String leftType  = t1.getType();
-            String rightType = t2.getType();
+            jjtThis.jjtAddChild(t1, 0);
+            jjtThis.jjtAddChild(t2, 1);
+            
+            String leftType  = ((SimpleNode) jjtThis.jjtGetChild(0)).getType();
+            String rightType = ((SimpleNode) jjtThis.jjtGetChild(1)).getType();
             if (leftType.equals("string") || rightType.equals("string")) {
                 throw new ParseException("Semantic Error: Cannot use +/- on strings at line " + op.beginLine);
             }
@@ -207,8 +210,11 @@ SimpleNode Term() :
     (
         ( op=<MULTIPLY> | op=<DIVIDE> ) t2=Factor()
         {
-            String leftType  = t1.getType();
-            String rightType = t2.getType();
+            jjtThis.jjtAddChild(t1, 0);
+            jjtThis.jjtAddChild(t2, 1);
+            
+            String leftType  = ((SimpleNode) jjtThis.jjtGetChild(0)).getType();
+            String rightType = ((SimpleNode) jjtThis.jjtGetChild(1)).getType();
             if (leftType.equals("string") || rightType.equals("string")) {
                 throw new ParseException("Semantic Error: Cannot use */÷ on strings at line " + op.beginLine);
             }
