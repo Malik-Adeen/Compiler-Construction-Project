@@ -6,7 +6,9 @@ Compiler front-end for the Classroom Language (CL) - A simple educational progra
 ```
 ├── src/               # Source files
 │   ├── CL.jjt        # JavaCC grammar
-│   └── SymbolTable.java
+│   ├── SymbolTable.java
+│   ├── Node.java     # AST Node interface
+│   └── SimpleNode.java # AST Node implementation
 ├── generated/         # Compiled output
 ├── test/             # Test cases
 ├── compile.sh        # Build script (Linux/Mac)

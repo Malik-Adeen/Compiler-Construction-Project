@@ -110,7 +110,7 @@ void StartProgram() : {}
 
 void VariableDeclarations() : {}
 {
-  ( VarDeclaration() )*  // Changed to * to allow zero or more
+  ( VarDeclaration() )* 
 }
 
 SimpleNode VarDeclaration() :
@@ -184,8 +184,8 @@ SimpleNode Expression() :
     (
         ( op=<PLUS> | op=<MINUS> ) t2=Term()
         {
-            String leftType  = ((SimpleNode) jjtThis.jjtGetChild(0)).getType();
-            String rightType = ((SimpleNode) jjtThis.jjtGetChild(1)).getType();
+            String leftType  = t1.getType();
+            String rightType = t2.getType();
             if (leftType.equals("string") || rightType.equals("string")) {
                 throw new ParseException("Semantic Error: Cannot use +/- on strings at line " + op.beginLine);
             }
@@ -207,8 +207,8 @@ SimpleNode Term() :
     (
         ( op=<MULTIPLY> | op=<DIVIDE> ) t2=Factor()
         {
-            String leftType  = ((SimpleNode) jjtThis.jjtGetChild(0)).getType();
-            String rightType = ((SimpleNode) jjtThis.jjtGetChild(1)).getType();
+            String leftType  = t1.getType();
+            String rightType = t2.getType();
             if (leftType.equals("string") || rightType.equals("string")) {
                 throw new ParseException("Semantic Error: Cannot use */÷ on strings at line " + op.beginLine);
             }
@@ -248,7 +248,7 @@ SimpleNode Factor() :
         jjtThis.setType(resolvedType);
         return jjtThis;
     }
-|   <LPAREN> { SimpleNode inner = Expression(); jjtThis.setType(inner.getType()); return jjtThis; } <RPAREN>
+|   <LPAREN> { SimpleNode inner = Expression(); jjtThis.setType(inner.getType()); } <RPAREN> { return jjtThis; }
 }
 
 void OutStringStatement() : {}
@@ -261,7 +261,7 @@ void OutStringStatement() : {}
 void LoopIfStatement() : {}
 {
   <LOOPIF> Condition() <HOLDS>
-  ( SimpleStatement() )+  // At least one statement required
+  ( SimpleStatement() )+ 
   <ENDLOOP>
 }
 
@@ -284,18 +284,18 @@ void SwitchForStatement() :
     }
   }
   ( CaseClause() )+
-  ( OtherClause() )?  // Other clause is now optional
+  ( OtherClause() )?  
   <ENDSWITCHFOR>
 }
 
 void CaseClause() : {}
 {
-  <CASE> ( <INTEGER> | <STRING_LITERAL> ) <COLON> ( SimpleStatement() )+  // Support multiple simple statements per case
+  <CASE> ( <INTEGER> | <STRING_LITERAL> ) <COLON> ( SimpleStatement() )+  
 }
 
 void OtherClause() : {}
 {
-  <OTHER> <COLON> ( SimpleStatement() )+  // Support multiple simple statements
+  <OTHER> <COLON> ( SimpleStatement() )+  
 }
 
 void Condition() : 
