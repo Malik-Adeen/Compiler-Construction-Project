@@ -76,11 +76,6 @@ for testfile in "$TEST_DIR"/error*.cl; do
     if [ -f "$testfile" ]; then
         filename=$(basename "$testfile")
         
-        # Skip error9 (type checking not implemented)
-        if [ "$filename" = "error9_string_in_math.cl" ]; then
-            continue
-        fi
-        
         ((total++))
         echo -ne "Testing ${filename} ... "
         
@@ -105,14 +100,6 @@ for testfile in "$TEST_DIR"/error*.cl; do
     fi
 done
 
-echo ""
-
-# Known Limitations
-echo -e "${MAGENTA}--- KNOWN LIMITATIONS ---${NC}"
-echo ""
-echo -e "${GRAY}Skipped: error9_string_in_math.cl${NC}"
-echo -e "${GRAY}  Reason: Type checking not implemented (beyond project scope)${NC}"
-echo -e "${GRAY}  This is acceptable for basic semantic analysis${NC}"
 echo ""
 
 # Summary
