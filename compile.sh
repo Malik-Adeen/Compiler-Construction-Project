@@ -72,7 +72,7 @@ echo ""
 
 # Step 4: Compile
 echo -e "${YELLOW}[4/5] Compiling Java files...${NC}"
-javac -d generated *.java
+javac --release 25 -d generated *.java
 if [ $? -ne 0 ]; then
     echo -e "${RED}Compilation failed!${NC}"
     exit 1
