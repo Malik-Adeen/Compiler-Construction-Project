@@ -9,10 +9,12 @@ import java.io.*;
 
 public class CLParser {
   static SymbolTable st = new SymbolTable();
+  static SimpleNode programAST;
   
   public static void main(String[] args) {
     try {
       InputStream input = System.in;
+      
       if (args.length > 0) {
         input = new FileInputStream(args[0]);
         System.out.println("Reading from file: " + args[0]);
@@ -21,21 +23,72 @@ public class CLParser {
       }
       
       CLParser parser = new CLParser(input);
-      parser.StartProgram();
+      programAST = parser.StartProgram();
       System.out.println("\n✓ Parsing completed successfully!");
       
-      // Display symbol table
+      
+      System.out.println("\n" + "=".repeat(70));
+      System.out.println("PHASE 1: SEMANTIC ANALYSIS");
+      System.out.println("=".repeat(70));
+      
+      SemanticAnalyzer semanticAnalyzer = new SemanticAnalyzer(st);
+      boolean semanticValid = semanticAnalyzer.analyze(programAST);
+      semanticAnalyzer.printReport();
+      
+      if (!semanticValid) {
+        System.out.println("\n✗ Semantic analysis failed. Stopping compilation.");
+        System.exit(1);
+      }
+      
+      
       System.out.println("\nSymbol Table:");
       st.print();
       
+      
+      System.out.println("\n" + "=".repeat(70));
+      System.out.println("PHASE 2: INTERMEDIATE CODE GENERATION");
+      System.out.println("=".repeat(70) + "\n");
+      
+      IRGenerator irGenerator = new IRGenerator(st);
+      irGenerator.generateFromAST(programAST);
+      IntermediateRepresentation ir = irGenerator.getIR();
+      ir.print();
+      
+      
+      System.out.println("\n" + "=".repeat(70));
+      System.out.println("PHASE 3: CODE OPTIMIZATION");
+      System.out.println("=".repeat(70));
+      
+      IROptimizer optimizer = new IROptimizer(ir);
+      IntermediateRepresentation optimizedIR = optimizer.optimize();
+      optimizer.printOptimizationReport();
+      optimizedIR.print();
+      
+      
+      System.out.println("\n" + "=".repeat(70));
+      System.out.println("PHASE 4: ASSEMBLY CODE GENERATION");
+      System.out.println("=".repeat(70));
+      
+      AssemblyCodeGenerator asmGenerator = new AssemblyCodeGenerator(optimizedIR, st);
+      asmGenerator.generate();
+      asmGenerator.printAssemblyCode();
+      System.out.println(asmGenerator.getStatistics());
+      
+      System.out.println("\n✓ Compilation completed successfully!");
+      
     } catch (ParseException e) {
       System.err.println("Syntax Error: " + e.getMessage());
+      System.exit(1);
     } catch (TokenMgrError e) {
       System.err.println("Lexical Error: " + e.getMessage());
+      System.exit(1);
     } catch (FileNotFoundException e) {
       System.err.println("File not found: " + e.getMessage());
+      System.exit(1);
     } catch (Exception e) {
       System.err.println("Error: " + e.getMessage());
+      e.printStackTrace();
+      System.exit(1);
     }
   }
 }
@@ -54,7 +107,9 @@ TOKEN : /* KEYWORDS */
 | < VARIABLES: "variables" >
 | < CODE: "code" >
 | < INT: "int" >
+| < FLOAT: "float" >
 | < STRING: "string" >
+| < CHAR: "char" >
 | < OUTSTRING: "outString" >
 | < LOOPIF: "loopif" >
 | < HOLDS: "holds" >
@@ -67,7 +122,9 @@ TOKEN : /* KEYWORDS */
 
 TOKEN : /* LITERALS */
 {
-  < INTEGER: (["0"-"9"])+ >
+  < FLOAT_LITERAL: (["0"-"9"])+ "." (["0"-"9"])+ >
+| < INTEGER: (["0"-"9"])+ >
+| < CHAR_LITERAL: "'" (~["'"])? "'" >
 | < IDENTIFIER: ["a"-"z","A"-"Z"] (["a"-"z","A"-"Z","0"-"9","_"])* >
 | < STRING_LITERAL: "\"" (~["\""])* "\"" >
 }
@@ -97,15 +154,25 @@ TOKEN : /* DELIMITERS */
 
 // --- GRAMMAR PRODUCTIONS ---
 
-void StartProgram() : {}
+SimpleNode StartProgram() :
+{
+  SimpleNode stmtNode;
+  int childIndex = 0;
+}
 {
   <STARTPROGRAM>
   <VARIABLES> <COLON>
   VariableDeclarations()
   <CODE> <COLON>
-  ( Statement() )* 
+  ( stmtNode=Statement() 
+    {
+      jjtThis.jjtAddChild(stmtNode, childIndex++);
+    }
+  )* 
   <ENDPROGRAM>
-  <EOF>
+  {
+    return jjtThis;
+  }
 }
 
 void VariableDeclarations() : {}
@@ -118,40 +185,46 @@ SimpleNode VarDeclaration() :
     Token tType, tName, tValue;
 }
 {
-    ( tType=<INT> | tType=<STRING> )
+    ( tType=<INT> | tType=<FLOAT> | tType=<STRING> | tType=<CHAR> )
     tName=<IDENTIFIER>
     <ASSIGN>
-    ( tValue=<INTEGER> | tValue=<STRING_LITERAL> )
+    ( tValue=<INTEGER> | tValue=<FLOAT_LITERAL> | tValue=<STRING_LITERAL> | tValue=<CHAR_LITERAL> )
     <SEMICOLON>
     {
         jjtThis.value = tName.image;
         jjtThis.setType(tType.image);
 
-        if (!st.checkValue(tType.image + tName.image)) {
+        if (st.containsKey(tName.image)) {
             throw new ParseException("Semantic Error: Variable '" + tName.image + "' already declared.");
         }
-        st.put(tName.image, tType.image + tName.image);
+        st.put(tName.image, tType.image, tValue.image);
         return jjtThis;
     }
 }
 
-void Statement() : {}
+SimpleNode Statement() :
+{
+  SimpleNode stmt;
+}
 {
   LOOKAHEAD(2)
-  AssignmentStatement()
-| OutStringStatement()
-| LoopIfStatement()
-| SwitchForStatement()
+  stmt=AssignmentStatement() { return stmt; }
+| stmt=OutStringStatement() { return stmt; }
+| stmt=LoopIfStatement() { return stmt; }
+| stmt=SwitchForStatement() { return stmt; }
 }
 
-void SimpleStatement() : {}
+SimpleNode SimpleStatement() :
+{
+  SimpleNode stmt;
+}
 {
   LOOKAHEAD(2)
-  AssignmentStatement()
-| OutStringStatement()
+  stmt=AssignmentStatement() { return stmt; }
+| stmt=OutStringStatement() { return stmt; }
 }
 
-void AssignmentStatement() :
+SimpleNode AssignmentStatement() #AssignmentStatement :
 {
     Token tName;
     SimpleNode exprNode;
@@ -163,14 +236,17 @@ void AssignmentStatement() :
             throw new ParseException("Semantic Error: Variable '" + tName.image + "' not declared at line " + tName.beginLine);
         }
 
-        String storedVal = st.get(tName.image);
-        String varType = storedVal.startsWith("int") ? "int" : "string";
+        String varType = st.getType(tName.image);
         String exprType = ((SimpleNode) exprNode.jjtGetChild(0)).getType();
 
         if (!varType.equals(exprType) && !exprType.equals("unknown")) {
             throw new ParseException("Semantic Error: Type mismatch at line " + tName.beginLine +
                                      ". Cannot assign " + exprType + " to " + varType + ".");
         }
+        
+        jjtThis.value = tName.image;
+        jjtThis.jjtAddChild(exprNode, 0);
+        return jjtThis;
     }
 }
 
@@ -237,10 +313,22 @@ SimpleNode Factor() :
         jjtThis.setType("int");
         return jjtThis;
     }
+|   t=<FLOAT_LITERAL>
+    {
+        jjtThis.value = t.image;
+        jjtThis.setType("float");
+        return jjtThis;
+    }
 |   t=<STRING_LITERAL>
     {
         jjtThis.value = t.image;
         jjtThis.setType("string");
+        return jjtThis;
+    }
+|   t=<CHAR_LITERAL>
+    {
+        jjtThis.value = t.image;
+        jjtThis.setType("char");
         return jjtThis;
     }
 |   t=<IDENTIFIER>
@@ -248,8 +336,7 @@ SimpleNode Factor() :
         if (!st.containsKey(t.image)) {
             throw new ParseException("Semantic Error: Variable '" + t.image + "' not declared at line " + t.beginLine);
         }
-        String storedVal = st.get(t.image);
-        String resolvedType = storedVal.startsWith("int") ? "int" : "string";
+        String resolvedType = st.getType(t.image);
         jjtThis.value = t.image;
         jjtThis.setType(resolvedType);
         return jjtThis;
@@ -257,21 +344,41 @@ SimpleNode Factor() :
 |   <LPAREN> { SimpleNode inner = Expression(); jjtThis.setType(inner.getType()); } <RPAREN> { return jjtThis; }
 }
 
-void OutStringStatement() : {}
+SimpleNode OutStringStatement() #OutStringStatement :
+{
+  SimpleNode exprNode;
+}
 {
   <OUTSTRING> <LPAREN> 
-  Expression() 
+  exprNode=Expression() 
   <RPAREN> <SEMICOLON>
+  {
+    jjtThis.jjtAddChild(exprNode, 0);
+    return jjtThis;
+  }
 }
 
-void LoopIfStatement() : {}
+SimpleNode LoopIfStatement() #LoopIfStatement :
 {
-  <LOOPIF> Condition() <HOLDS>
-  ( SimpleStatement() )+ 
+  SimpleNode condNode;
+  SimpleNode stmtNode;
+  int childIndex = 1;
+}
+{
+  <LOOPIF> condNode=Condition() <HOLDS>
+  ( stmtNode=SimpleStatement()
+    {
+      jjtThis.jjtAddChild(stmtNode, childIndex++);
+    }
+  )+ 
   <ENDLOOP>
+  {
+    jjtThis.jjtAddChild(condNode, 0);
+    return jjtThis;
+  }
 }
 
-void SwitchForStatement() : 
+SimpleNode SwitchForStatement() : 
 { Token tVar; }
 {
   <SWITCHFOR> <LPAREN> tVar=<IDENTIFIER> <RPAREN>
@@ -281,10 +388,8 @@ void SwitchForStatement() :
       throw new ParseException("Semantic Error: Variable '" + tVar.image + 
                                "' not declared in switchFor at line " + tVar.beginLine);
     }
-    
-    // Check if variable is int or string type
-    String storedVal = st.get(tVar.image);
-    String varType = storedVal.startsWith("int") ? "int" : "string";
+    // Get variable type
+    String varType = st.getType(tVar.image);
     if (!varType.equals("int") && !varType.equals("string")) {
       throw new ParseException("Semantic Error: SwitchFor variable must be int or string type at line " + tVar.beginLine);
     }
@@ -292,6 +397,10 @@ void SwitchForStatement() :
   ( CaseClause() )+
   ( OtherClause() )?  
   <ENDSWITCHFOR>
+  {
+    jjtThis.value = tVar.image;
+    return jjtThis;
+  }
 }
 
 void CaseClause() : {}
@@ -304,7 +413,7 @@ void OtherClause() : {}
   <OTHER> <COLON> ( SimpleStatement() )+  
 }
 
-void Condition() : 
+SimpleNode Condition() #Condition : 
 { Token t; }
 {
   ( t=<IDENTIFIER> 
@@ -314,8 +423,12 @@ void Condition() :
         throw new ParseException("Semantic Error: Variable '" + t.image + 
                                  "' not declared in condition at line " + t.beginLine);
       }
+      jjtThis.value = t.image;
     }
-  | <INTEGER> 
+  | t=<INTEGER> 
+    {
+      jjtThis.value = t.image;
+    }
   ) 
   ( <GT> | <LT> | <GTE> | <LTE> | <EQ> | <NEQ> ) 
   ( t=<IDENTIFIER>
@@ -326,6 +439,9 @@ void Condition() :
                                  "' not declared in condition at line " + t.beginLine);
       }
     }
-  | <INTEGER> 
+  | t=<INTEGER> 
   )
+  {
+    return jjtThis;
+  }
 }
